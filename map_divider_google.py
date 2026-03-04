@@ -75,20 +75,22 @@ if st.button("Завантажити межі") or (place != st.session_state.pl
         st.warning("Введіть назву місця.")
 
 # Функція створення карти
+# Функція створення карти (оновлена)
 def create_map(bounds):
     center_lat = (bounds['min_lat'] + bounds['max_lat']) / 2
     center_lon = (bounds['min_lon'] + bounds['max_lon']) / 2
+    
     m = folium.Map(location=[center_lat, center_lon], tiles=None)
 
-    folium.TileLayer(tiles=tiles_url, attr=attr, name=tile_option).add_to(m)
+    folium.TileLayer(
+        tiles=tiles_url,
+        attr=attr,
+        name=tile_option,
+        overlay=False,
+        control=True
+    ).add_to(m)
 
-    # Автоматичне центрування та масштабування так, щоб область займала екран
-    m.fit_bounds(
-        [[bounds['min_lat'], bounds['min_lon']], [bounds['max_lat'], bounds['max_lon']]],
-        padding_top_left=[20, 20],
-        padding_bottom_right=[20, 80]  # трохи більше місця знизу для кнопок
-    )
-
+    # Додаємо прямокутник і елементи (як було)
     folium.Rectangle(
         bounds=[[bounds['min_lat'], bounds['min_lon']], [bounds['max_lat'], bounds['max_lon']]],
         color="black", weight=3, fill=False
@@ -100,34 +102,43 @@ def create_map(bounds):
     folium.PolyLine([[mid_lat, bounds['min_lon']], [mid_lat, bounds['max_lon']]], color="blue", dash_array="5").add_to(m)
     folium.PolyLine([[bounds['min_lat'], mid_lon], [bounds['max_lat'], mid_lon]], color="blue", dash_array="5").add_to(m)
 
-    for label, pos in [
-        ("1 NW", [(mid_lat + bounds['max_lat'])/2, (bounds['min_lon'] + mid_lon)/2]),
-        ("2 NE", [(mid_lat + bounds['max_lat'])/2, (mid_lon + bounds['max_lon'])/2]),
-        ("3 SW", [(bounds['min_lat'] + mid_lat)/2, (bounds['min_lon'] + mid_lon)/2]),
-        ("4 SE", [(bounds['min_lat'] + mid_lat)/2, (mid_lon + bounds['max_lon'])/2])
-    ]:
-        folium.Marker(
-            location=pos,
-            icon=folium.DivIcon(html=f'<div style="font-size:16pt;color:red;font-weight:bold;background:white;padding:4px;border-radius:4px;">{label}</div>')
-        ).add_to(m)
+    # Маркери 1-4, центр тощо (залишаємо як є)
+    # ... ваш код маркерів ...
 
-    folium.Marker(
-        [center_lat, center_lon],
-        popup=f"Центр (рівень {st.session_state.level})<br>{center_lat:.6f}° N, {center_lon:.6f}° E",
-        tooltip="Центр поточного квадрата",
-        icon=folium.Icon(color='red', icon='info-sign')
-    ).add_to(m)
-
-    folium.CircleMarker(
-        [center_lat, center_lon],
-        radius=10,
-        color="red",
-        fill=True,
-        fill_color="red",
-        fill_opacity=0.5
-    ).add_to(m)
+    # Важливо: явно встановлюємо bounds після всіх елементів
+    m.fit_bounds(
+        [[bounds['min_lat'], bounds['min_lon']], [bounds['max_lat'], bounds['max_lon']]],
+        padding_top_left=[30, 30],
+        padding_bottom_right=[30, 100],   # більше місця знизу для кнопок
+        max_zoom=12                        # обмежуємо максимальний зум, щоб не було надто близько
+    )
 
     return m
+
+# Виклик карти — з ключем для примусового оновлення
+key = f"map_{st.session_state.level}_{tile_option}"  # ключ змінюється при зміні рівня або типу карти
+
+map_obj = create_map(st.session_state.current_bounds)
+st_folium(
+    map_obj,
+    width="100%",
+    height=550,
+    key=key,                       # критичний рядок — змушує Streamlit перестворювати віджет
+    returned_objects=[]            # якщо не потрібні кліки по карті
+)
+
+
+# Виклик карти — з ключем для примусового оновлення
+key = f"map_{st.session_state.level}_{tile_option}"  # ключ змінюється при зміні рівня або типу карти
+
+map_obj = create_map(st.session_state.current_bounds)
+st_folium(
+    map_obj,
+    width="100%",
+    height=550,
+    key=key,                       # критичний рядок — змушує Streamlit перестворювати віджет
+    returned_objects=[]            # якщо не потрібні кліки по карті
+)
 
 map_obj = create_map(st.session_state.current_bounds)
 st_folium(map_obj, width=900, height=600)
@@ -225,3 +236,4 @@ if st.button("Скинути все до дефолтної України"):
     st.session_state.place_name = "Україна"
     st.session_state.history = []
     st.rerun()
+
